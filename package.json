@@ -1,0 +1,30 @@
+{
+  "name": "ai-agent-development-assessment-",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "node server/index.js",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "node test/runTests.js && node server/test/server.test.js",
+    "test:client": "node test/runTests.js",
+    "test:server": "node server/test/server.test.js",
+    "package:zip": "node scripts/packageZip.js"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "lucide-react": "^1.59.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.88.0",
+    "vite": "^8.3.4"
+  }
+}
