@@ -3,6 +3,7 @@ import {
   salesAgentEngine, 
   detectSchedulingIntent, 
   isRomanizedTelugu, 
+  isRomanizedHindi,
   isShortConfirmation, 
   extractEmail, 
   analyzeLastBotTurn 
@@ -737,7 +738,101 @@ await asyncTest('10. Regression: Both typed messages and voice transcripts use t
 });
 
 // ----------------------------------------------------
-// 9. Final Results
+// 9. English & Hindi Effective Customer Sales Conversations
+// ----------------------------------------------------
+console.log('\n--- Test Suite 9: English & Hindi Highly Effective Sales Conversations ---');
+
+await asyncTest('English: Budget objection returns ROI evidence and 14-day zero-risk trial', async () => {
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'This looks way too expensive for our small budget',
+    conversationHistory: [],
+    product,
+    language: 'en'
+  });
+  assert(reply.toLowerCase().includes('roi') || reply.includes('4.2x'), 'Must explain positive ROI for budget objection');
+  assert(reply.toLowerCase().includes('14-day') || reply.toLowerCase().includes('trial'), 'Must propose 14-day zero-risk trial');
+});
+
+await asyncTest('English: Timing objection reassures 5-minute setup and offers flexible walkthrough', async () => {
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'We are way too busy right now, not right now',
+    conversationHistory: [],
+    product,
+    language: 'en'
+  });
+  assert(reply.toLowerCase().includes('5 minutes') || reply.toLowerCase().includes('zero coding'), 'Must reassure quick setup');
+  assert(reply.toLowerCase().includes('walkthrough') || reply.toLowerCase().includes('schedule'), 'Must offer flexible walkthrough');
+});
+
+await asyncTest('English: Authority objection offers Executive ROI summary and joint demo', async () => {
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'I need to discuss this with my boss and leadership team first',
+    conversationHistory: [],
+    product,
+    language: 'en'
+  });
+  assert(reply.toLowerCase().includes('executive') || reply.toLowerCase().includes('summary') || reply.toLowerCase().includes('leadership'), 'Must offer leadership ROI summary');
+  assert(reply.toLowerCase().includes('email'), 'Must ask for email address to send summary');
+});
+
+await asyncTest('Hindi: Romanized Hinglish sales acceleration ("mujhe apni team ki sales badhani hai") returns consultative diagnostic in Hindi', async () => {
+  assert.strictEqual(isRomanizedHindi('mujhe apni team ki sales badhani hai'), true, 'Must recognize Romanized Hindi');
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'mujhe apni team ki sales badhani hai',
+    conversationHistory: [],
+    product,
+    language: 'hi'
+  });
+  assert(reply.includes('समझ गया') || reply.includes('सेल्स तेजी से'), 'Must understand Hinglish sales acceleration');
+  assert(reply.includes('चुनौती नई लीड्स पाना है') || reply.includes('ग्राहकों में बदलना'), 'Must ask consultative diagnostic question in Hindi');
+});
+
+await asyncTest('Hindi: Budget objection ("yeh bahut mehenga hai") handles price with ROI and free trial in Hindi', async () => {
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'yeh bahut mehenga hai',
+    conversationHistory: [],
+    product,
+    language: 'hi'
+  });
+  assert(reply.includes('बजट') || reply.includes('ROI') || reply.includes('4 गुना'), 'Must frame budget as positive ROI in Hindi');
+  assert(reply.includes('14-दिन') || reply.includes('ट्रायल'), 'Must propose 14-day free trial in Hindi');
+});
+
+await asyncTest('Hindi: Team size consultation ("meri team me 10 log hain") recommends Growth tier with analytics in Hindi', async () => {
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'meri team me 10 log hain',
+    conversationHistory: [],
+    product,
+    language: 'hi'
+  });
+  assert(reply.includes('10 सदस्यों') || reply.includes('ग्रोथ प्लान'), 'Must recommend Growth plan for team size in Hindi');
+  assert(reply.includes('लाइव डेमो') || reply.includes('डेमो देखना'), 'Must propose live demo in Hindi');
+});
+
+await asyncTest('Hindi: Short confirmation ("theek hai") after demo offer asks for date/time and email without repeating demo pitch', async () => {
+  assert.strictEqual(isShortConfirmation('theek hai'), true, '"theek hai" must be recognized as short confirmation');
+  
+  const history = [
+    { sender: 'user', text: '10 log hain' },
+    { sender: 'bot', text: 'क्या आप अपनी टीम के लिए 15 मिनट का लाइव डेमो देखना चाहेंगे?' }
+  ];
+
+  const analyzed = analyzeLastBotTurn(history);
+  assert.strictEqual(analyzed.offeredDemo, true, 'Must recognize previous demo offer');
+
+  const reply = await salesAgentEngine.generateResponse({
+    userMessage: 'theek hai',
+    conversationHistory: history,
+    product,
+    language: 'hi'
+  });
+
+  assert(!reply.includes('क्या आप अपनी टीम के लिए 15 मिनट का लाइव डेमो देखना चाहेंगे?'), 'Must never repeat the demo invitation');
+  assert(reply.includes('ईमेल') || reply.includes('समय'), 'Must ask for meeting time and email in Hindi');
+});
+
+// ----------------------------------------------------
+// 10. Final Results
 // ----------------------------------------------------
 console.log(`\n==============================================`);
 console.log(`Test Execution Finished! Passed: ${passedTests}, Failed: ${failedTests}`);

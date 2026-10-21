@@ -78,6 +78,24 @@ export function isRomanizedTelugu(text) {
   return romanizedMarkers.some(marker => t.includes(marker));
 }
 
+// Detect Romanized Hindi (Hindi written with English alphabet / Hinglish)
+export function isRomanizedHindi(text) {
+  if (!text || typeof text !== 'string') return false;
+  const t = text.toLowerCase().trim();
+  const romanizedMarkers = [
+    'mujhe', 'hume', 'humari', 'hamari', 'apni team', 'team ki sales', 'sales badhani',
+    'sales badhana', 'tez karna', 'badhana', 'badhani', 'karna hai', 'kaise kaam',
+    'kaise karta', 'kya karta', 'kya hai', 'kya pricing', 'kitna kharcha', 'kitna',
+    'kitne', 'kitni', 'lagte', 'kharcha', 'kimat', 'daam', 'paisa', 'paise', 'batao',
+    'bataiye', 'dikhao', 'dikhaye', 'dekhna', 'karo', 'kariye', 'theek hai', 'thik hai',
+    'sahi hai', 'haan', 'ha ji', 'zaroor', 'bilkul', 'namaste', 'kaise ho', 'log hain',
+    'members hain', 'log hai', 'mehenga', 'sasta', 'kam karo', 'chahiye', 'hoga',
+    'shuru kare', 'shuru karna', 'dekhna chahta', 'dekhna chahte', 'baat karni',
+    'manager se', 'boss se', 'abhi time', 'baad me', 'puchna', 'pehle se'
+  ];
+  return romanizedMarkers.some(marker => t.includes(marker));
+}
+
 // Bug 2 & 5: Detect short confirmations (yes, haa sare, avunu, sure, okay, etc.)
 export function isShortConfirmation(text) {
   if (!text || typeof text !== 'string') return false;
@@ -147,7 +165,8 @@ export function analyzeLastBotTurn(conversationHistory = []) {
 
   const offeredDemo = 
     t.includes('డెమో') || t.includes('demo') || t.includes('walkthrough') || 
-    t.includes('screen-share') || t.includes('డేమో');
+    t.includes('screen-share') || t.includes('డేమో') || t.includes('डेमो') || 
+    t.includes('स्क्रीन-शेयर');
 
   const offeredTrial = 
     t.includes('ట్రయల్') || t.includes('trial') || t.includes('ట్రయల్‌') || t.includes('ट्रायल');
@@ -155,11 +174,11 @@ export function analyzeLastBotTurn(conversationHistory = []) {
   const askedLeadChallenge = 
     t.includes('కొత్త లీడ్స్ పొందడంలోనా') || t.includes('కస్టమర్లుగా మార్చడంలోనా') || 
     t.includes('new leads') || t.includes('converting existing leads') ||
-    t.includes('नई लीड्स');
+    t.includes('नई लीड्स') || t.includes('ग्राहकों में बदलना');
 
   const askedTeamSize = 
     t.includes('ఎంతమంది సభ్యులు') || t.includes('ఎంతమంది') || t.includes('members') || 
-    t.includes('team size') || t.includes('कितने');
+    t.includes('team size') || t.includes('कितने') || t.includes('लोग');
 
   let intent = 'GENERAL';
   if (askedForEmail) intent = 'ASKED_FOR_EMAIL';
@@ -272,11 +291,11 @@ class SalesAgentEngine {
     const text = raw.toLowerCase();
     const turnCount = conversationHistory.length;
 
-    // Detect Romanized Telugu and authentic Telugu script
+    // Detect Romanized Telugu, Romanized Hindi, and authentic scripts
     const hasTeluguScript = /[\u0C00-\u0C7F]/.test(raw);
     const hasHindiScript = /[\u0900-\u097F]/.test(raw);
     const isRomanTelugu = isRomanizedTelugu(text);
-    const isRomanHindi = !isRomanTelugu && /\b(namaste|kaise ho|bataiye|chahiye|kitna|hoga|karo|theek hai)\b/i.test(text);
+    const isRomanHindi = !isRomanTelugu && (isRomanizedHindi(text) || /\b(namaste|kaise ho|bataiye|chahiye|kitna|hoga|karo|theek hai|sahi hai|bilkul|zaroor)\b/i.test(text));
 
     let effectiveLang = language;
     if (hasTeluguScript || isRomanTelugu) {
@@ -373,20 +392,27 @@ class SalesAgentEngine {
       return `Done! I have that exact time noted down. Our solutions specialist will reach out to you right on schedule. What's the best email address to send your calendar invite to?`;
     }
 
-    // 4. Sales Acceleration Need (Bug 4: "naaku maa team ku sales inkaa fast ga increase avvali")
+    // 4. Sales Acceleration Need (e.g. "I want to increase our team's sales faster", "mujhe apni team ki sales badhani hai", "naaku maa team ku sales inkaa fast ga increase avvali")
     const isSalesAcceleration = 
       text.includes('sales inkaa fast ga increase avvali') ||
       text.includes('sales inkaa fast') ||
       text.includes('sales fast ga') ||
       text.includes('sales penchali') ||
-      (text.includes('sales') && (text.includes('fast') || text.includes('increase') || text.includes('grow') || text.includes('వేగంగా') || text.includes('పెరగాలి')));
+      text.includes('sales badhani') ||
+      text.includes('sales badhana') ||
+      text.includes('सेल्स तेजी से') ||
+      text.includes('सेल्स बढ़ानी') ||
+      text.includes('sales tez') ||
+      text.includes('sales increase karni') ||
+      text.includes('sales badhaye') ||
+      (text.includes('sales') && (text.includes('fast') || text.includes('increase') || text.includes('grow') || text.includes('accelerate') || text.includes('వేగంగా') || text.includes('పెరగాలి') || text.includes('तेजी') || text.includes('बढ़ानी')));
 
     if (isSalesAcceleration) {
       if (isTe) {
         return `అర్థమైంది! మీ టీమ్ సేల్స్ వేగంగా పెరగాలంటే కొత్త లీడ్స్కి త్వరగా స్పందించడం, ఫాలో-అప్స్ ఆటోమేట్ చేయడం చాలా ఉపయోగపడతాయి. ప్రస్తుతం మీ టీమ్కి ఎక్కువ సమస్య కొత్త లీడ్స్ పొందడంలోనా, లేక వచ్చిన లీడ్స్ని కస్టమర్లుగా మార్చడంలోనా?`;
       }
       if (isHi) {
-        return `समझ गया! अगर आप अपनी टीम की सेल्स तेजी से बढ़ाना चाहते हैं, तो नई लीड्स को तुरंत रिस्पॉन्ड करना और फॉलो-अप ऑटोमेट करना सबसे असरदार है। क्या आपकी टीम के लिए बड़ी चुनौती नई लीड्स पाना है, या मिली हुई लीड्स को ग्राहकों में बदलना?`;
+        return `बिल्कुल समझ गया! अगर आप अपनी टीम की सेल्स तेजी से बढ़ाना चाहते हैं, तो दो सबसे असरदार तरीके हैं: नई लीड्स को 30 सेकंड में ऑटो-रिस्पॉन्ड करना और निरंतर फॉलो-अप करना। क्या आपकी टीम के लिए बड़ी चुनौती नई लीड्स पाना है, या मिली हुई लीड्स को ग्राहकों में बदलना?`;
       }
       return `Understood! To accelerate your team's sales velocity, responding to leads within 30 seconds and automating follow-ups are game changers. Is your team currently facing more friction in generating new leads, or in following up and converting existing leads?`;
     }
@@ -396,7 +422,8 @@ class SalesAgentEngine {
       text.includes('కొత్త లీడ్స్') || text.includes('లీడ్స్ పొందడం') || text.includes('kottha leads') || 
       text.includes('kotha leads') || text.includes('leads ravatledu') || text.includes('getting leads') || 
       text.includes('generating leads') || text.includes('new leads') || text.includes('లీడ్స్ రావట్లేదు') ||
-      text.includes('नई लीड्स');
+      text.includes('नई लीड्स') || text.includes('leads chahiye') || text.includes('lead nahi') ||
+      text.includes('inbound leads') || text.includes('more leads');
 
     if (isLeadGenChallenge) {
       if (isTe) {
@@ -412,7 +439,8 @@ class SalesAgentEngine {
       text.includes('కస్టమర్లుగా మార్చడం') || text.includes('మార్చడంలో') || text.includes('ఫాలో-అప్') || 
       text.includes('converting leads') || text.includes('convert leads') || text.includes('follow ups') || 
       text.includes('follow-ups') || text.includes('conversion') || text.includes('leads convert') ||
-      text.includes('कन्वर्ट');
+      text.includes('कन्वर्ट') || text.includes('deal close') || text.includes('follow up') ||
+      text.includes('ग्राहकों में बदलना');
 
     if (isLeadConvChallenge) {
       if (isTe) {
@@ -424,11 +452,15 @@ class SalesAgentEngine {
       return `To convert more leads into paying customers, ${product.name} runs instant automated multi-touch follow-ups and syncs directly with your CRM so no prospect slips through the cracks. How many sales reps are on your team right now?`;
     }
 
-    // 6. Team Size Intent (Bug 3: "maa team lo 10 members unnaru", "10 members", etc.)
+    // 6. Team Size Intent (e.g. "we have 10 reps", "maa team lo 10 members unnaru", "hamari team me 10 log hain")
     const isTeamSize = 
-      /\b\d+\s*(members?|people|reps?|mandi|log|మంది|लोग)\b/i.test(text) ||
+      /\b\d+\s*(members?|people|reps?|mandi|log|hain|hai|మంది|लोग)\b/i.test(text) ||
       (text.includes('team lo') && /\d+/.test(text)) ||
+      (text.includes('team me') && /\d+/.test(text)) ||
+      (text.includes('team mein') && /\d+/.test(text)) ||
       text.includes('members unnaru') ||
+      text.includes('log hain') ||
+      text.includes('log hai') ||
       text.includes('మంది సభ్యులు');
 
     if (isTeamSize) {
@@ -496,10 +528,62 @@ class SalesAgentEngine {
       return `I would love to set that up! Our solutions specialist will walk you through a quick 15-minute tailored screen-share so you can see it live with your own data. Does this Thursday at 2:00 PM EST work, or would Friday morning suit you better?`;
     }
 
-    // 10. Pricing & Plans (Bug 3: "entha cost avutundi", "ధర ఎంత", "ఖర్చు ఎంత", "dhara", "kharchu")
+    // 10. Persuasive Objection Handling: Budget & Price Objections (e.g. "too expensive", "mehenga hai", "budget kam hai")
+    const isBudgetObjection = 
+      text.includes('expensive') || text.includes('too costly') || text.includes('costly') || 
+      text.includes('tight budget') || text.includes('no budget') || text.includes('high price') || 
+      text.includes('mehenga') || text.includes('महंगा') || text.includes('बजट कम') || 
+      text.includes('बजट नहीं') || text.includes('budget kam') || text.includes('budget nahi') || 
+      text.includes('dhara ekkuva') || text.includes('ధర ఎక్కువ') || text.includes('ఖరీదైనది');
+
+    if (isBudgetObjection) {
+      if (isHi) {
+        return `बजट की चिंता मैं पूरी तरह समझता हूँ! हमारे अधिकांश क्लाइंट्स पहले 60 दिनों में 4 गुना से अधिक ROI देखते हैं—महीने में सिर्फ 1-2 अतिरिक्त डील्स क्लोज होने से ही पूरा खर्च निकल आता है। साथ ही हमारा 14-दिन का ट्रायल बिल्कुल मुफ्त है बिना किसी क्रेडिट कार्ड के ताकि आप खुद परिणाम देख सकें। क्या आप इसे आज़माना चाहेंगे?`;
+      }
+      if (isTe) {
+        return `బడ్జెట్ ప్రాధాన్యతను నేను అర్థం చేసుకోగలను! ${product.name} మొదటి 60 రోజుల్లో 4.2 రెట్ల ROI ని అందిస్తుంది. నెలకు కేవలం 1 లేదా 2 అదనపు డీల్స్ క్లోజ్ అయినా ఈ ఖర్చు సులభంగా సరిపోతుంది. ఎటువంటి క్రెడిట్ కార్డు లేకుండా 14 రోజుల ఉచిత ట్రయల్ ద్వారా మీరు దీన్ని స్వయంగా పరిశీలించవచ్చు. ట్రయల్ ప్రారంభించమంటారా?`;
+      }
+      return `I completely respect budget considerations. That's why ${product.name} is engineered to deliver a 4.2x ROI within the first 60 days—closing just 1 or 2 extra deals per month easily covers the entire investment. To prove the return without risking your budget, we provide a 14-day full feature trial with no credit card required. Would you like to test that out?`;
+    }
+
+    // 11. Persuasive Objection Handling: Timing & Busyness (e.g. "not right now", "call later", "abhi time nahi hai")
+    const isTimingObjection = 
+      text.includes('not right now') || text.includes('no time') || text.includes('too busy') || 
+      text.includes('call next month') || text.includes('next quarter') || text.includes('abhi time nahi') || 
+      text.includes('baad me') || text.includes('fursat nahi') || text.includes('समय नहीं') || 
+      text.includes('बाद में') || text.includes('తర్వాత మాట్లాడతాను');
+
+    if (isTimingObjection) {
+      if (isHi) {
+        return `मैं समझता हूँ कि अभी आपका समय बहुत व्यस्त है। सबसे अच्छी बात यह है कि ${product.name} बिना किसी कोडिंग के सिर्फ 5 मिनट में शुरू हो जाता है। क्या अगले सप्ताह 15 मिनट का समय आपके लिए सुविधाजनक रहेगा ताकि ज़रूरत पड़ने पर आपके पास सारी जानकारी तैयार रहे?`;
+      }
+      if (isTe) {
+        return `మీరు చాలా బిజీగా ఉన్నారని నేను అర్థం చేసుకోగలను. ${product.name} ని ఎటువంటి కోడింగ్ లేకుండా కేవలం 5 నిమిషాల్లో సెటప్ చేసుకోవచ్చు. మీకు వీలైనప్పుడు సమాచారం సిద్ధంగా ఉండేందుకు వచ్చే వారం ఒక 15 నిమిషాల చిన్న డెమో పెట్టుకుందామా?`;
+      }
+      return `I totally understand you're swamped right now. The best part about ${product.name} is that setup takes under 5 minutes with zero coding required. What if we do a quick 15-minute walkthrough next Tuesday or Wednesday so you have all the numbers ready when timing aligns?`;
+    }
+
+    // 12. Persuasive Objection Handling: Authority & Management Approval (e.g. "need to ask my boss", "manager se baat")
+    const isAuthorityObjection = 
+      text.includes('boss') || text.includes('manager') || text.includes('leadership') || 
+      text.includes('team lead') || text.includes('founder') || text.includes('decision maker') || 
+      text.includes('बॉस') || text.includes('మేనేజర్');
+
+    if (isAuthorityObjection) {
+      if (isHi) {
+        return `बिल्कुल सही, टीम लीडरशिप और मैनेजमेंट की सहमति बहुत ज़रूरी है। मैं आपको 1-पेज की एग्जीक्यूटिव ROI समरी ईमेल कर सकता हूँ जो आप सीधे अपने बॉस को दिखा सकते हैं, या हम उन्हें भी 15 मिनट के डेमो में इनवाइट कर सकते हैं। आपका ईमेल एड्रेस क्या है?`;
+      }
+      if (isTe) {
+        return `ఖచ్చితంగా, మీ టీమ్ మేనేజ్‌మెంట్ లేదా బాస్‌తో చర్చించడం చాలా ముఖ్యం. మీ లీడర్‌షిప్‌కి చూపించడానికి వీలుగా ROI మరియు సమయ ఆదా వివరాలతో కూడిన 1-పేజీ ఎగ్జిక్యూటివ్ సమ్మరీని నేను ఈమెయిల్ చేయగలను. మీ ఈమెయిల్ అడ్రస్ చెప్పగలరా?`;
+      }
+      return `That makes complete sense—getting team alignment is essential. I can email you a concise 1-page Executive ROI summary that highlights cost savings and conversion metrics to share directly with your leadership, or we can invite them to a quick 15-minute walkthrough. What's the best email address to send that to?`;
+    }
+
+    // 13. Pricing & Plans (Bug 3: "entha cost avutundi", "ధర ఎంత", "ఖర్చు ఎంత", "dhara", "kharchu")
     if (text.includes('price') || text.includes('cost') || text.includes('how much') || text.includes('plan') || 
         text.includes('pricing') || text.includes('कीमत') || text.includes('ధర') || text.includes('ఖర్చు') || 
         text.includes('రేటు') || text.includes('ఎంత') || text.includes('dhara') || text.includes('kharchu') || 
+        text.includes('kya pricing') || text.includes('kitna kharcha') || text.includes('kimat') ||
         text.includes('avutundi') || text.includes('avuthundi')) {
       if (isHi) {
         return `${product.name} का स्टार्टर प्लान सिर्फ $49 प्रति माह से शुरू होता है, और अनलिमिटेड AI के लिए ग्रोथ प्लान $99 है। साथ ही 14 दिनों का निःशुल्क ट्रायल भी है जिसमें कोई क्रेडिट कार्ड नहीं चाहिए। क्या आप ट्रायल से शुरू करना चाहेंगे?`;
@@ -510,10 +594,11 @@ class SalesAgentEngine {
       return `${product.name} is very straightforward: our Starter tier is ${product.pricing?.starter || '$49 / user / month'}, and our most popular Growth tier is ${product.pricing?.growth || '$99 / user / month'} for unlimited AI workflows. Most importantly, you can start today with a 14-day zero-risk trial without a credit card. Shall I set you up with that?`;
     }
 
-    // 11. Free Trial Activation & Direct Interest: "ట్రయల్ కావాలి / Start trial"
+    // 14. Free Trial Activation & Direct Interest: "ట్రయల్ కావాలి / Start trial / trial chahiye"
     if (text.includes('trial') || text.includes('free trial') || text.includes('ట్రయల్') || text.includes('ప్రారంభించండి') || 
         text.includes('ట్రయల్ కావాలి') || text.includes('కొంటాను') || text.includes('ట్రై చేస్తాను') || 
-        text.includes('ट्रायल') || text.includes('शुरू करें') || text.includes('start trial')) {
+        text.includes('ट्रायल') || text.includes('शुरू करें') || text.includes('start trial') ||
+        text.includes('trial chahiye') || text.includes('trial shuru') || text.includes('azmana chahta')) {
       if (isHi) {
         return `बहुत बढ़िया! मैं आपके लिए 14-दिन का निःशुल्क ट्रायल तुरंत एक्टिवेट कर सकता हूँ। क्या आप अपनी वर्क ईमेल आईडी साझा करेंगे?`;
       }
